@@ -4,7 +4,9 @@ add_executable(triangle
 
 target_link_libraries(triangle
     LINK_PUBLIC
+    glad
     glfw
     OpenGL
     glm
+    spdlog
 )

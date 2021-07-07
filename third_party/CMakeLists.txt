@@ -1,6 +1,7 @@
+set(GLAD_ALL_EXTENSIONS ON)
+
 add_subdirectory(assimp)
 add_subdirectory(glad)
 add_subdirectory(glfw)
 add_subdirectory(glm)
-
-include(cmake/imgui.cmake)
+add_subdirectory(spdlog)

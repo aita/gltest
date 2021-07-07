@@ -1,8 +1,9 @@
-#define GL_GLEXT_PROTOTYPES 1
-#define GL4_PROTOTYPES 1
-
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <spdlog/spdlog.h>
+
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -13,22 +14,26 @@ std::vector<glm::vec3> points = {
     {-0.5f, -0.5f, 0.0f},
 };
 
-const char *vertex_shader = "#version 400\n"
-                            "in vec3 vp;"
-                            "void main() {"
-                            "  gl_Position = vec4(vp, 1.0);"
-                            "}";
+const char *vertexShader = u8R"##(#version 400
+in vec3 vp;
 
-const char *fragment_shader = "#version 400\n"
-                              "out vec4 frag_colour;"
-                              "void main() {"
-                              "  frag_colour = vec4(0.5, 0.0, 0.5, 1.0);"
-                              "}";
+void main() {
+  gl_Position = vec4(vp, 1.0);
+}
+)##";
+
+const char *fragmentShader = u8R"##(#version 400
+out vec4 frag_colour;
+
+void main() {
+  frag_colour = vec4(0.5, 0.0, 0.5, 1.0);
+}
+)##";
 
 int main() {
   // start GL context and O/S window using the GLFW helper library
   if (!glfwInit()) {
-    std::cerr << "ERROR: could not start GLFW3" << std::endl;
+    spdlog::error("could not start GLFW3");
     return 1;
   }
 
@@ -39,16 +44,21 @@ int main() {
 
   GLFWwindow *window = glfwCreateWindow(640, 480, "Hello Triangle", NULL, NULL);
   if (!window) {
-    std::cerr << "ERROR: could not open window with GLFW3" << std::endl;
+    spdlog::error("could not open window with GLFW3");
     glfwTerminate();
     return 1;
   }
   glfwMakeContextCurrent(window);
+  glfwSwapInterval(1); // Enable vsync
+
+  if (!gladLoadGL()) {
+    spdlog::error("failed to initialize OpenGL loader");
+    return 1;
+  }
 
   // get version info
-  std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
-  std::cout << "OpenGL version supported: " << glGetString(GL_VERSION)
-            << std::endl;
+  spdlog::info("Renderer: {}", glGetString(GL_RENDERER));
+  spdlog::info("OpenGL version supported: {}", glGetString(GL_VERSION));
 
   // tell GL to only draw onto a pixel if the shape is closer to the viewer
   glEnable(GL_DEPTH_TEST); // enable depth-testing
@@ -73,10 +83,10 @@ int main() {
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
 
   GLuint vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertexShaderID, 1, &vertex_shader, NULL);
+  glShaderSource(vertexShaderID, 1, &vertexShader, NULL);
   glCompileShader(vertexShaderID);
   GLuint fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragmentShaderID, 1, &fragment_shader, NULL);
+  glShaderSource(fragmentShaderID, 1, &fragmentShader, NULL);
   glCompileShader(fragmentShaderID);
 
   GLuint programID = glCreateProgram();
