@@ -1,2 +1,2 @@
-add_subdirectory(triangle)
-add_subdirectory(hello_imgui)
+add_subdirectory(Triangle)
+add_subdirectory(HelloImGui)

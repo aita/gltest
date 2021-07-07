@@ -23,22 +23,22 @@ std::vector<Vertex> vertices = {
 
 const char *vertex_shader_source = u8R"##(#version 400
 layout(location = 0) in vec3 vertex_position;
-layout(location = 1) in vec3 vertex_colour;
+layout(location = 1) in vec3 vertex_color;
 
-out vec3 colour;
+out vec3 color;
 
 void main() {
-  colour = vertex_colour;
+  color = vertex_color;
   gl_Position = vec4(vertex_position, 1.0);
 }
 )##";
 
 const char *fragment_shader_source = u8R"##(#version 400
-in vec3 colour;
-out vec4 frag_colour;
+in vec3 color;
+out vec4 frag_color;
 
 void main() {
-  frag_colour = vec4(colour, 1.0);
+  frag_color = vec4(color, 1.0);
 }
 )##";
 

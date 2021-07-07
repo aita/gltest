@@ -1,8 +1,8 @@
-add_executable(triangle
+add_executable(Triangle
     main.cc
 )
 
-target_link_libraries(triangle
+target_link_libraries(Triangle
     LINK_PUBLIC
     glad
     glfw

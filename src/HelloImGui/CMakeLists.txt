@@ -1,8 +1,8 @@
-add_executable(hello_imgui
+add_executable(HelloImGui
     main.cc
 )
 
-target_link_libraries(hello_imgui
+target_link_libraries(HelloImGui
     LINK_PUBLIC
     glfw
     OpenGL
