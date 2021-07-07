@@ -30,12 +30,21 @@ void main() {
 }
 )##";
 
+void HandleGLFWError(int error, const char *description) {
+  spdlog::error("GLFW Error: {}", description);
+}
+
 int main() {
+  glfwSetErrorCallback(HandleGLFWError);
+
   // start GL context and O/S window using the GLFW helper library
   if (!glfwInit()) {
     spdlog::error("could not start GLFW3");
     return 1;
   }
+
+  // Anti-Aliasing
+  glfwWindowHint(GLFW_SAMPLES, 4);
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
@@ -43,6 +52,13 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
   GLFWwindow *window = glfwCreateWindow(640, 480, "Hello Triangle", NULL, NULL);
+
+  // Full-Screen
+  // GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+  // const GLFWvidmode *vmode = glfwGetVideoMode(monitor);
+  // GLFWwindow *window = glfwCreateWindow(vmode->width, vmode->height,
+  //                                       "Extended GL Init", monitor, NULL);
+
   if (!window) {
     spdlog::error("could not open window with GLFW3");
     glfwTerminate();
@@ -95,6 +111,11 @@ int main() {
   glLinkProgram(programID);
 
   while (!glfwWindowShouldClose(window)) {
+    if (GLFW_PRESS == glfwGetKey(window, GLFW_KEY_ESCAPE)) {
+      glfwSetWindowShouldClose(window, 1);
+      continue;
+    }
+
     // wipe the drawing surface clear
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(programID);
