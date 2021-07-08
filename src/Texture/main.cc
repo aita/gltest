@@ -4,6 +4,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <spdlog/spdlog.h>
+#include <stb_image.h>
 
 #include <iostream>
 #include <memory>
@@ -16,35 +17,43 @@ const int WINDOW_HEIGHT = 400;
 
 struct Vertex {
   glm::vec3 point;
-  glm::vec3 color;
+  glm::vec2 texcoord;
 };
 
 std::vector<Vertex> vertices = {
-    {{0.0f, 0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+    {{0.5f, 0.5f, 0.0f}, {1.0f, 1.0f}},   // top right
+    {{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f}},  // bottom right
+    {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f}}, // bottom left
+    {{-0.5f, 0.5f, 0.0f}, {0.0f, 1.0f}},  // top left
+};
+
+std::vector<GLushort> indices = {
+    0, 1, 3, // first triangle
+    1, 2, 3  // second triangle
 };
 
 const char *vertex_shader_source = u8R"##(#version 400
 layout(location = 0) in vec3 vertex_position;
-layout(location = 1) in vec3 vertex_color;
+layout(location = 1) in vec2 vertex_texcoord;
 
-out vec3 color;
+out vec2 texcoord;
 
 uniform mat4 MVP;
 
 void main() {
-  color = vertex_color;
+  texcoord = vertex_texcoord;
   gl_Position = MVP * vec4(vertex_position, 1.0);
 }
 )##";
 
 const char *fragment_shader_source = u8R"##(#version 400
-in vec3 color;
+in vec2 texcoord;
 out vec4 frag_color;
 
+uniform sampler2D texture0;
+
 void main() {
-  frag_color = vec4(color, 1.0);
+  frag_color = texture2D(texture0, texcoord);
 }
 )##";
 
@@ -68,7 +77,25 @@ void LogProgramInfo(GLuint program) {
   spdlog::error("program info log for GL index {}:\n{}", program, program_log);
 }
 
-int main() {
+int main(int argc, char **argv) {
+  if (argc != 2) {
+    std::cerr << "Usage: " << argv[0] << " FILENAME" << std::endl;
+    return 1;
+  }
+
+  stbi_set_flip_vertically_on_load(true);
+
+  int image_width, image_height, image_nchannel;
+  std::unique_ptr<unsigned char, decltype(&stbi_image_free)> image_data(
+      stbi_load(argv[1], &image_width, &image_height, &image_nchannel, 0),
+      stbi_image_free);
+
+  if ((!image_data) || (0 >= image_width) || (0 >= image_height) ||
+      (0 >= image_nchannel)) {
+    spdlog::error("could not read image");
+    return 1;
+  }
+
   glfwSetErrorCallback(HandleGLFWError);
 
   // start GL context and O/S window using the GLFW helper library
@@ -115,10 +142,9 @@ int main() {
   glEnable(GL_DEPTH_TEST); // enable depth-testing
   glDepthFunc(GL_LESS); // depth-testing interprets a smaller value as "closer"
 
-  // disable Culling
-  // glEnable(GL_CULL_FACE); // cull face
-  // glCullFace(GL_BACK);    // cull back face
-  // glFrontFace(GL_CW);     // GL_CCW for counter clock-wise
+  glEnable(GL_CULL_FACE); // cull face
+  glCullFace(GL_BACK);    // cull back face
+  glFrontFace(GL_CW);
 
   // glClearColor(/* GLfloat red   = */ 0.2f,
   //              /* GLfloat green = */ 0.2f,
@@ -128,7 +154,7 @@ int main() {
   GLuint vbo = 0;
   glGenBuffers(1, &vbo);
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), &vertices[0],
+  glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertices.size(), &vertices[0],
                GL_STATIC_DRAW);
 
   GLuint vao = 0;
@@ -137,8 +163,27 @@ int main() {
   glEnableVertexAttribArray(0);
   glEnableVertexAttribArray(1);
   glBindBuffer(GL_ARRAY_BUFFER, vbo);
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 24, BUFFER_OFFSET(0));
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 24, BUFFER_OFFSET(12));
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                        BUFFER_OFFSET(0));
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                        BUFFER_OFFSET(12));
+
+  GLuint ebo;
+  glGenBuffers(1, &ebo);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(GLushort) * indices.size(),
+               &indices[0], GL_STATIC_DRAW);
+
+  GLuint texture = 0;
+  glGenTextures(1, &texture);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image_width, image_height, 0, GL_RGB,
+               GL_UNSIGNED_BYTE, image_data.get());
+  glGenerateMipmap(GL_TEXTURE_2D);
 
   int params = -1;
   GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
@@ -173,29 +218,23 @@ int main() {
   }
 
   GLuint uniform_mvp = glGetUniformLocation(program, "MVP");
+  GLuint uniform_texture = glGetUniformLocation(program, "texture0");
 
-  glm::vec3 camera_position(4.0f, 3.0f, 3.0f);
-  glm::vec3 camera_target(0.0f, 0.0f, 0.0f);
-  glm::vec3 up_vector(0.0f, 1.0f, 0.0f);
-  glm::mat4 view = glm::lookAt(camera_position, camera_target, up_vector);
-  glm::mat4 projection = glm::perspective(
-      glm::radians(45.0f), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f,
-      100.0f);
-  float angular_velocity = glm::pi<float>() * 2.0f;
-
+  glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+  float aspect_ratio = WINDOW_WIDTH / (float)WINDOW_HEIGHT;
+  glm::mat4 view = glm::ortho(-1.0f * aspect_ratio, 1.0f * aspect_ratio, -1.0f,
+                              1.0f, -100.0f, 100.0f);
+  glm::mat4 mvp = view;
   while (!glfwWindowShouldClose(window)) {
-    double time = glfwGetTime();
-    float angle = angular_velocity * time;
-    glm::mat4 model = glm::rotate(angle, glm::vec3(0.0f, 1.0f, 0.0f));
-
-    // wipe the drawing surface clear
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glUseProgram(program);
-    auto mvp = projection * view * model;
     glUniformMatrix4fv(uniform_mvp, 1, GL_FALSE, &mvp[0][0]);
-    glBindVertexArray(vao);
-    // draw points 0-3 from the currently bound VAO with current in-use shader
-    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glUniform1i(uniform_texture, texture);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    // glBindVertexArray(vao);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+
     // put the stuff we've been drawing onto the display
     glfwSwapBuffers(window);
     // update other events like input handling
